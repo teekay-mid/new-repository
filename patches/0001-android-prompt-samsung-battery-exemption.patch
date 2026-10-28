@@ -1,0 +1,70 @@
+diff --git a/android/app/src/main/java/com/noop/ble/BackgroundHealth.kt b/android/app/src/main/java/com/noop/ble/BackgroundHealth.kt
+index ff42034e..2bfb6f87 100644
+--- a/android/app/src/main/java/com/noop/ble/BackgroundHealth.kt
++++ b/android/app/src/main/java/com/noop/ble/BackgroundHealth.kt
+@@ -37,11 +37,13 @@ object BackgroundHealth {
+ 
+     /**
+      * Manufacturers whose proprietary battery managers kill background work regardless of the AOSP
+-     * foreground-service contract (the dontkillmyapp.com set). ONE canonical list — [AndroidDiagnostics]
++     * foreground-service contract (the dontkillmyapp.com set). Samsung is included: One UI puts apps
++     * into "Sleeping"/"Deep sleeping" after a few unused days and stops their background work, which
++     * reads as nights that sometimes sync and sometimes do not. ONE canonical list — [AndroidDiagnostics]
+      * and the Settings toggle both read it here so the two can never drift. Pure.
+      */
+     val AGGRESSIVE_VENDORS: List<String> =
+-        listOf("xiaomi", "oppo", "vivo", "huawei", "oneplus", "realme", "meizu")
++        listOf("xiaomi", "oppo", "vivo", "huawei", "oneplus", "realme", "meizu", "samsung")
+ 
+     /** True when [manufacturer] is one whose ROM aggressively kills background apps. Pure + Context-free
+      *  so it unit-tests without Robolectric. Defaults to this device's manufacturer. */
+diff --git a/android/app/src/test/java/com/noop/ble/BackgroundHealthTest.kt b/android/app/src/test/java/com/noop/ble/BackgroundHealthTest.kt
+index 9e877362..f65b7709 100644
+--- a/android/app/src/test/java/com/noop/ble/BackgroundHealthTest.kt
++++ b/android/app/src/test/java/com/noop/ble/BackgroundHealthTest.kt
+@@ -23,12 +23,13 @@ class BackgroundHealthTest {
+             "HUAWEI", "Huawei",
+             "OnePlus", "oneplus",
+             "Meizu",
++            "samsung", "Samsung",
+         ).forEach { assertTrue("$it should be aggressive", BackgroundHealth.isAggressiveVendor(it)) }
+     }
+ 
+     @Test
+     fun `standard vendors do not match`() {
+-        listOf("Google", "samsung", "Samsung", "motorola", "Nothing", "Sony", "Fairphone", "")
++        listOf("Google", "motorola", "Nothing", "Sony", "Fairphone", "")
+             .forEach { assertFalse("$it should NOT be aggressive", BackgroundHealth.isAggressiveVendor(it)) }
+     }
+ 
+@@ -36,7 +37,7 @@ class BackgroundHealthTest {
+     fun `the canonical set is exactly the dontkillmyapp vendors`() {
+         // Pin the list so a future edit is a deliberate, reviewed change (it drives who gets prompted).
+         assertEquals(
+-            listOf("xiaomi", "oppo", "vivo", "huawei", "oneplus", "realme", "meizu"),
++            listOf("xiaomi", "oppo", "vivo", "huawei", "oneplus", "realme", "meizu", "samsung"),
+             BackgroundHealth.AGGRESSIVE_VENDORS,
+         )
+     }
+diff --git a/android/app/src/test/java/com/noop/testcentre/AndroidDiagnosticsTest.kt b/android/app/src/test/java/com/noop/testcentre/AndroidDiagnosticsTest.kt
+index 98d7ad9a..959e262d 100644
+--- a/android/app/src/test/java/com/noop/testcentre/AndroidDiagnosticsTest.kt
++++ b/android/app/src/test/java/com/noop/testcentre/AndroidDiagnosticsTest.kt
+@@ -15,7 +15,7 @@ import org.junit.Test
+ class AndroidDiagnosticsTest {
+ 
+     @Test fun aggressiveVendorsAreFlagged() {
+-        for (vendor in listOf("Xiaomi", "OPPO", "vivo", "HUAWEI", "OnePlus", "realme", "Meizu")) {
++        for (vendor in listOf("Xiaomi", "OPPO", "vivo", "HUAWEI", "OnePlus", "realme", "Meizu", "Samsung")) {
+             val text = AndroidDiagnostics.oemKillHeuristic(vendor)
+             assertTrue("$vendor should flag as aggressive", text.startsWith("aggressive vendor"))
+             assertTrue("$vendor heuristic should advise whitelisting", text.contains("whitelist NOOP"))
+@@ -23,7 +23,7 @@ class AndroidDiagnosticsTest {
+     }
+ 
+     @Test fun standardVendorsAreNotFlagged() {
+-        for (vendor in listOf("Google", "Samsung", "Sony", "Motorola")) {
++        for (vendor in listOf("Google", "Sony", "Motorola")) {
+             assertEquals("standard", AndroidDiagnostics.oemKillHeuristic(vendor))
+         }
+     }
